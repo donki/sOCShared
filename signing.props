@@ -1,0 +1,14 @@
+<!-- Configuracion de firma Release compartida por todas las apps sOCratic (fuente unica de verdad).
+     Cada app la importa:  <Import Project="..\Shared\signing.props" />  (Hiker: ..\..\Shared\...).
+     La CONTRASENA no se guarda aqui: se pasa por CLI al generar el AAB:
+       dotnet publish <proj> -c Release -f <tfm> -p:AndroidPackageFormat=aab \
+         -p:AndroidSigningStorePass=<pass> -p:AndroidSigningKeyPass=<pass>
+     Clave comun: Shared\socratic.keystore  (alias smsforwarder, SHA1 C1:CF:43:...). -->
+<Project>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <AndroidPackageFormat>aab</AndroidPackageFormat>
+    <AndroidKeyStore>true</AndroidKeyStore>
+    <AndroidSigningKeyStore>$(MSBuildThisFileDirectory)socratic.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias>smsforwarder</AndroidSigningKeyAlias>
+  </PropertyGroup>
+</Project>

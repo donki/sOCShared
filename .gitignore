@@ -1,0 +1,7 @@
+# Claves y secretos — NUNCA subir
+*.keystore
+*.jks
+*.pem
+.env
+*-service-account*.json
+hiker-*.json
