@@ -119,10 +119,11 @@ public static class AuthorNotes
         try
         {
             var ctx = page.GetType().Name;
-            var txt = await page.DisplayPromptAsync(
+            var txt = await SocShared.ModernDialog.PromptAsync(
+                page,
                 "📝 Nota — " + ctx,
                 "Se guarda sola al pulsar Guardar (pantalla y hora incluidas).",
-                "Guardar", "Cancelar", "Escribe aquí…", maxLength: 4000, keyboard: Keyboard.Text);
+                accept: "Guardar", cancel: "Cancelar", placeholder: "Escribe aquí…");
             if (!string.IsNullOrWhiteSpace(txt))
                 Save(ctx, txt);
         }
