@@ -1,14 +1,43 @@
-<!-- Configuracion de firma Release compartida por todas las apps sOCratic (fuente unica de verdad).
+<!-- Configuracion de firma compartida por todas las apps sOCratic (fuente unica de verdad).
      Cada app la importa:  <Import Project="..\Shared\signing.props" />  (Hiker: ..\..\Shared\...).
-     La CONTRASENA no se guarda aqui: se pasa por CLI al generar el AAB:
-       dotnet publish <proj> -c Release -f <tfm> -p:AndroidPackageFormat=aab \
-         -p:AndroidSigningStorePass=<pass> -p:AndroidSigningKeyPass=<pass>
-     Clave comun: Shared\socratic.keystore  (alias smsforwarder, SHA1 C1:CF:43:...). -->
+
+     DEBUG Y RELEASE SE FIRMAN CON LA MISMA CLAVE (Shared\socratic.keystore, alias smsforwarder,
+     SHA1 C1:CF:43:...). Antes solo se firmaba Release y Debug salia con la clave de depuracion de
+     Android: eso hacia que instalar una compilacion de pruebas encima de una publicada —o al reves—
+     fallara con INSTALL_FAILED_UPDATE_INCOMPATIBLE y obligara a desinstalar, perdiendo los datos de
+     la aplicacion. Con la misma firma, cualquier build actualiza a cualquier otro.
+
+     La CONTRASENA no se guarda aqui (constitucion Mobile 2). Se puede dar de dos formas:
+
+       1) Variable de entorno, comoda para el dia a dia y para el IDE:
+            setx SOC_KEYSTORE_PASS <pass>        (una vez; reabrir la consola/IDE despues)
+
+       2) Por linea de comandos, que manda sobre la anterior:
+            dotnet publish <proj> -c Release -f <tfm> -p:AndroidPackageFormat=aab \
+              -p:AndroidSigningStorePass=<pass> -p:AndroidSigningKeyPass=<pass>
+
+     Sin ninguna de las dos, el build de Debug seguira funcionando pero firmado con la clave de
+     depuracion; el de Release fallara al firmar, que es lo que interesa que pase. -->
 <Project>
+
+  <!-- Firma: en las dos configuraciones. -->
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <AndroidSigningKeyStore>$(MSBuildThisFileDirectory)socratic.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias>smsforwarder</AndroidSigningKeyAlias>
+
+    <!-- La variable de entorno solo rellena lo que no venga ya por linea de comandos. -->
+    <AndroidSigningStorePass Condition="'$(AndroidSigningStorePass)' == '' and '$(SOC_KEYSTORE_PASS)' != ''">$(SOC_KEYSTORE_PASS)</AndroidSigningStorePass>
+    <AndroidSigningKeyPass Condition="'$(AndroidSigningKeyPass)' == '' and '$(SOC_KEYSTORE_PASS)' != ''">$(SOC_KEYSTORE_PASS)</AndroidSigningKeyPass>
+
+    <!-- Sin contrasena no se puede usar la clave compartida: Debug cae a la de depuracion en vez de
+         romper el build, que es lo razonable mientras se programa. -->
+    <AndroidKeyStore Condition="'$(AndroidSigningStorePass)' != ''">true</AndroidKeyStore>
+  </PropertyGroup>
+
+  <!-- Release ademas empaqueta como AAB, que es lo que pide Play. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <AndroidPackageFormat>aab</AndroidPackageFormat>
     <AndroidKeyStore>true</AndroidKeyStore>
-    <AndroidSigningKeyStore>$(MSBuildThisFileDirectory)socratic.keystore</AndroidSigningKeyStore>
-    <AndroidSigningKeyAlias>smsforwarder</AndroidSigningKeyAlias>
   </PropertyGroup>
+
 </Project>

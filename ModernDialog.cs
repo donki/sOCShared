@@ -43,9 +43,24 @@ public static class ModernDialog
         var accentBtn = MakeButton(accept, Accent(), Colors.White);
         Button? cancelBtn = cancel is null ? null : MakeButton(cancel, Color.FromArgb(IsDark ? "#2A2F37" : "#EDF0F3"), TextColor);
 
-        var buttons = new HorizontalStackLayout { Spacing = 10, HorizontalOptions = LayoutOptions.End };
-        if (cancelBtn is not null) buttons.Add(cancelBtn);
-        buttons.Add(accentBtn);
+        // En una pantalla de movil los dos botones en fila solo caben si las etiquetas son cortas:
+        // con "Grant access" ya se ocupaba el ancho justo de la tarjeta, y en espanol
+        // ("Conceder acceso") el texto se salia y quedaba cortado. Cuando no caben, se apilan a lo
+        // ancho, que es lo que hacen los dialogos del sistema.
+        View buttons;
+        if (cancelBtn is not null && accept.Length + cancel!.Length > 20)
+        {
+            accentBtn.HorizontalOptions = LayoutOptions.Fill;
+            cancelBtn.HorizontalOptions = LayoutOptions.Fill;
+            buttons = new VerticalStackLayout { Spacing = 8, Children = { accentBtn, cancelBtn } };
+        }
+        else
+        {
+            var row = new HorizontalStackLayout { Spacing = 10, HorizontalOptions = LayoutOptions.End };
+            if (cancelBtn is not null) row.Add(cancelBtn);
+            row.Add(accentBtn);
+            buttons = row;
+        }
 
         var card = BuildCard(title, message, buttons);
         var overlay = BuildOverlay(page, card, onScrim: () => Close(page, () => tcs.TrySetResult(false)));
@@ -174,6 +189,13 @@ public static class ModernDialog
     {
         var host = HostGrid(page);
         if (host is null) return;
+
+        // Nunca dos dialogos superpuestos: si ya hay uno, se retira antes de poner el nuevo. Sin
+        // esto, dos avisos disparados a la vez (tipico al volver de un dialogo del sistema) dejaban
+        // el de debajo colgado en pantalla, sin nadie que lo cerrara.
+        foreach (var stale in host.Children.OfType<Grid>().Where(g => g.StyleId == OverlayId).ToList())
+            host.Children.Remove(stale);
+
         // El overlay ocupa toda la rejilla anfitriona.
         if (host.RowDefinitions.Count > 0) Grid.SetRowSpan(overlay, host.RowDefinitions.Count);
         if (host.ColumnDefinitions.Count > 0) Grid.SetColumnSpan(overlay, host.ColumnDefinitions.Count);
