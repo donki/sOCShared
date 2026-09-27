@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
@@ -100,7 +100,7 @@ public static class ModernDialog
 
     /// <summary>Entrada de texto (reemplaza DisplayPromptAsync). Devuelve el texto o null si se cancela.</summary>
     public static Task<string?> PromptAsync(Page page, string title, string? message, string accept = "OK",
-        string cancel = "Cancel", string? initialValue = null, string? placeholder = null)
+        string cancel = "Cancel", string? initialValue = null, string? placeholder = null, bool isPassword = false)
     {
         var tcs = new TaskCompletionSource<string?>();
 
@@ -108,6 +108,7 @@ public static class ModernDialog
         {
             Text = initialValue ?? string.Empty,
             Placeholder = placeholder ?? string.Empty,
+            IsPassword = isPassword,   // contraseñas (sOC Credentials): no se enseñan al teclearlas
             TextColor = TextColor,
             BackgroundColor = Color.FromArgb(IsDark ? "#12151A" : "#F1F4F7"),
         };

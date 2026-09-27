@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Devuelve el serial adb del Xiaomi: por USB si esta enchufado; si no, por Wi-Fi (depuracion inalambrica).
 .DESCRIPTION
@@ -16,7 +16,8 @@ param([string] $Ip = '192.168.0.15', [string] $UsbSerial = 'JJBILRLNOJL7JFY9')
 $ErrorActionPreference = 'Continue'
 $devices = adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "`tdevice$" } | ForEach-Object { ($_ -split "`t")[0] }
 if ($devices -contains $UsbSerial) { $UsbSerial; return }
-$wifi = $devices | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+:\d+$' } | Select-Object -First 1
+# 127.0.0.1:NNNN es un emulador (MuMu), no el movil.
+$wifi = $devices | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+:\d+$' -and $_ -notmatch '^127\.' } | Select-Object -First 1
 if ($wifi) { $wifi; return }
 
 $memo = Join-Path $env:LOCALAPPDATA 'sOC\xiaomi-wifi.txt'
@@ -48,8 +49,10 @@ function BuscarPuerto($target) {
             if ($found) { return $found }
         }
     }
-    [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]($tasks | ForEach-Object Task), 600) | Out-Null
-    foreach ($t in $tasks) { if ($t.Task.Status -eq 'RanToCompletion' -and $t.Client.Connected) { $found = $t.Port }; $t.Client.Dispose() }
+    if ($tasks.Count -gt 0) {
+        [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]($tasks | ForEach-Object Task), 600) | Out-Null
+        foreach ($t in $tasks) { if ($t.Task.Status -eq 'RanToCompletion' -and $t.Client.Connected) { $found = $t.Port }; $t.Client.Dispose() }
+    }
     return $found
 }
 $port = BuscarPuerto $Ip
