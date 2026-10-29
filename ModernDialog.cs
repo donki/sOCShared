@@ -68,6 +68,7 @@ public static class ModernDialog
         accentBtn.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(true));
         if (cancelBtn is not null) cancelBtn.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(false));
 
+        Abandon(overlay, () => tcs.TrySetResult(false));
         Present(page, overlay, card);
         return tcs.Task;
     }
@@ -93,6 +94,40 @@ public static class ModernDialog
 
         var card = BuildCard(title, null, list);
         var overlay = BuildOverlay(page, card, onScrim: () => Close(page, () => tcs.TrySetResult(null)));
+
+        Abandon(overlay, () => tcs.TrySetResult(null));
+        Present(page, overlay, card);
+        return tcs.Task;
+    }
+
+    /// <summary>
+    /// Pregunta con mensaje y varias respuestas apiladas (p. ej. «Enviar a la papelera», «Borrar
+    /// definitivamente») y cancelar al final. Devuelve la opción elegida o null si se cancela.
+    /// La primera opción va con el color de la app: es la recomendada.
+    /// </summary>
+    public static Task<string?> ChoiceAsync(Page page, string title, string message, string cancel, params string[] options)
+    {
+        var tcs = new TaskCompletionSource<string?>();
+
+        var list = new VerticalStackLayout { Spacing = 8 };
+        for (var i = 0; i < options.Length; i++)
+        {
+            var b = i == 0
+                ? MakeButton(options[i], Accent(), Colors.White)
+                : MakeButton(options[i], Color.FromArgb(IsDark ? "#2A2F37" : "#F1F4F7"), TextColor);
+            b.HorizontalOptions = LayoutOptions.Fill;
+            var captured = options[i];
+            b.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(captured));
+            list.Add(b);
+        }
+        var cancelBtn = MakeButton(cancel, Color.FromArgb(IsDark ? "#2A2F37" : "#EDF0F3"), TextColor);
+        cancelBtn.HorizontalOptions = LayoutOptions.Fill;
+        cancelBtn.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(null));
+        list.Add(cancelBtn);
+
+        var card = BuildCard(title, message, list);
+        var overlay = BuildOverlay(page, card, onScrim: () => Close(page, () => tcs.TrySetResult(null)));
+        Abandon(overlay, () => tcs.TrySetResult(null));
 
         Present(page, overlay, card);
         return tcs.Task;
@@ -128,6 +163,7 @@ public static class ModernDialog
         accentBtn.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(entry.Text ?? string.Empty));
         cancelBtn.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(null));
 
+        Abandon(overlay, () => tcs.TrySetResult(null));
         Present(page, overlay, card);
         return tcs.Task;
     }
@@ -174,6 +210,13 @@ public static class ModernDialog
         return overlay;
     }
 
+    // Qué responder si un diálogo se retira sin contestar (porque llega otro encima): sin esto, quien
+    // esperaba la respuesta se quedaba esperando para siempre (y con él, p. ej., un indicador de
+    // «trabajando» que no se iba nunca).
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Grid, System.Action> Abandoned = new();
+
+    static void Abandon(Grid overlay, System.Action answer) => Abandoned.AddOrUpdate(overlay, answer);
+
     static Button MakeButton(string text, Color bg, Color fg) => new()
     {
         Text = text,
@@ -195,7 +238,11 @@ public static class ModernDialog
         // esto, dos avisos disparados a la vez (tipico al volver de un dialogo del sistema) dejaban
         // el de debajo colgado en pantalla, sin nadie que lo cerrara.
         foreach (var stale in host.Children.OfType<Grid>().Where(g => g.StyleId == OverlayId).ToList())
+        {
             host.Children.Remove(stale);
+            if (Abandoned.TryGetValue(stale, out var abandon))
+                abandon();
+        }
 
         // El overlay ocupa toda la rejilla anfitriona.
         if (host.RowDefinitions.Count > 0) Grid.SetRowSpan(overlay, host.RowDefinitions.Count);
