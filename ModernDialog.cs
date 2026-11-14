@@ -37,7 +37,7 @@ public static class ModernDialog
     }
 
     /// <summary>Aviso/confirmación. Devuelve true si se pulsa "accept"; false si "cancel" o se descarta.</summary>
-    public static Task<bool> AlertAsync(Page page, string title, string message, string accept, string? cancel = null)
+    public static Task<bool> AlertAsync(Page page, string title, string message, string accept, string? cancel = null, bool dismissOnOutsideTap = true)
     {
         var tcs = new TaskCompletionSource<bool>();
         var accentBtn = MakeButton(accept, Accent(), Colors.White);
@@ -63,7 +63,7 @@ public static class ModernDialog
         }
 
         var card = BuildCard(title, message, buttons);
-        var overlay = BuildOverlay(page, card, onScrim: () => Close(page, () => tcs.TrySetResult(false)));
+        var overlay = BuildOverlay(page, card, onScrim: dismissOnOutsideTap ? () => Close(page, () => tcs.TrySetResult(false)) : null);
 
         accentBtn.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(true));
         if (cancelBtn is not null) cancelBtn.Clicked += (_, _) => Close(page, () => tcs.TrySetResult(false));
@@ -197,12 +197,17 @@ public static class ModernDialog
         };
     }
 
-    static Grid BuildOverlay(Page page, Border card, System.Action onScrim)
+    static Grid BuildOverlay(Page page, Border card, System.Action? onScrim)
     {
         var scrim = new BoxView { Color = ScrimColor, Opacity = 0 };
-        var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) => onScrim();
-        scrim.GestureRecognizers.Add(tap);
+        // Si onScrim es null, tocar fuera no cierra: para preguntas cuya respuesta por defecto perdería
+        // datos (p. ej. «¿guardar la ruta?»), un toque fuera sin querer no debe descartar.
+        if (onScrim is not null)
+        {
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => onScrim();
+            scrim.GestureRecognizers.Add(tap);
+        }
 
         var overlay = new Grid { StyleId = OverlayId };
         overlay.Add(scrim);
