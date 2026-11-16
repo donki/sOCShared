@@ -36,6 +36,23 @@ public static class AuthorNotes
     static string FilePath => Path.Combine(FileSystem.AppDataDirectory, "author_notes.json");
 
     static Page? _hookedPage;
+    static readonly List<WeakReference<Button>> _buttons = new();
+    static bool _hidden;
+
+    /// <summary>
+    /// Oculta el botón 📝 (p. ej. para capturas de tienda con datos de demostración); se puede
+    /// volver a mostrar. No borra las notas.
+    /// </summary>
+    public static bool Hidden
+    {
+        get => _hidden;
+        set
+        {
+            _hidden = value;
+            foreach (var w in _buttons)
+                if (w.TryGetTarget(out var b)) b.IsVisible = !value;
+        }
+    }
 
     public static void Attach(Window window)
     {
@@ -106,7 +123,10 @@ public static class AuthorNotes
                 VerticalOptions = LayoutOptions.End,
                 Margin = new Thickness(0, 0, 16, 90),
                 ZIndex = 999,
+                IsVisible = !_hidden,
             };
+            _buttons.RemoveAll(w => !w.TryGetTarget(out _));
+            _buttons.Add(new WeakReference<Button>(btn));
             btn.Clicked += async (_, _) => await ShowEditor(cp);
             grid.Add(btn);
             cp.Content = grid;
