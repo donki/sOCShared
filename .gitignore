@@ -5,3 +5,6 @@
 .env
 *-service-account*.json
 hiker-*.json
+
+# Caches de Python
+__pycache__/
