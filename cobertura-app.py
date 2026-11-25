@@ -348,6 +348,7 @@ def main():
     ap.add_argument("--defines", action="append", default=[])
     ap.add_argument("--calibrar", action="store_true")
     ap.add_argument("--detalle", action="store_true", help="cifras por fichero")
+    ap.add_argument("--excluir", action="append", default=[], help="carpeta de la app que no se compila en ella (Compile Remove)")
     a = ap.parse_args()
     app = norm(a.app)
     reports = [load_report(r) for r in a.report]
@@ -356,7 +357,10 @@ def main():
     total = covered = 0
     calib = [0, 0, 0]  # coincidencias, solo estimadas, solo coverlet
     rows = []
+    excluded = [norm(os.path.join(app, e)) + os.sep for e in a.excluir]
     for f in sorted(app_files(app)):
+        if any(norm(f).startswith(e) for e in excluded):
+            continue
         nf = norm(f)
         with open(f, encoding="utf-8-sig", errors="replace") as h:
             lines = h.read().split("\n")
